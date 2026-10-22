@@ -1,0 +1,25 @@
+@{
+    ViewData["Title"] = "Home";
+}
+
+<h1 class="display-5 mb-3">@AppInfo.Name</h1>
+<p class="lead">@AppInfo.Description</p>
+
+<section aria-labelledby="progress-heading" class="mt-4">
+    <h2 id="progress-heading" class="h4">Build progress</h2>
+    <p>No business features exist yet. This page shows the baseline only.</p>
+    <ul class="list-group">
+        <li class="list-group-item d-flex justify-content-between flex-wrap gap-2">
+            <span><strong>Node 1</strong> — Requirements, decisions and architecture documents</span>
+            <span class="text-muted">Complete</span>
+        </li>
+        <li class="list-group-item d-flex justify-content-between flex-wrap gap-2">
+            <span><strong>Node 2</strong> — Repository, tooling and baseline application (this build)</span>
+            <span class="text-muted">Baseline</span>
+        </li>
+        <li class="list-group-item d-flex justify-content-between flex-wrap gap-2">
+            <span><strong>Node 3</strong> — Database, sign-in and role permissions</span>
+            <span class="text-muted">Next</span>
+        </li>
+    </ul>
+</section>

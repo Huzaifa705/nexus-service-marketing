@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| Version | 1.2 — Node 2 baseline |
-| Date | 2026-10-20 |
+| Version | 1.3 — Node 2 baseline (.NET) |
+| Date | 2026-10-22 |
 | Scope | Defects and gaps in the source specification (all resolved by decisions in `decision-log.md`), project risks, and MVP limitations. No application defects exist yet because no application code has been written. |
 
 Severity: **H** can cause wrong money, wrong identifiers, or blocked delivery · **M** changes a workflow or rule · **L** minor or wording.
@@ -49,13 +49,14 @@ Severity: **H** can cause wrong money, wrong identifiers, or blocked delivery ·
 
 | ID | Risk | Sev. | Mitigation | Status |
 |---|---|---|---|---|
-| KI-R1 | In this chat Claude can create downloadable files but cannot reach GitHub, Supabase or Vercel, and cannot run commands against the repository | H | Working mode decided (D-18): files and commands in chat, repository workspace if available on Day 2; never claim a command, test or deployment succeeded without its output | Mitigated |
-| KI-R2 | Owner accounts (GitHub, Supabase, Vercel) must exist by the end of Day 2 or the Day 15 release is at risk | H | Owner action list in the Day 2 plan | Open (Node 2 action) |
+| KI-R1 | In this chat Claude can create downloadable files and build projects that need no NuGet packages, but cannot reach GitHub or NuGet and cannot run commands on the owner's machine or on SQL Server | H | Working mode decided (D-18): files and commands in chat, repository workspace if available on Day 2; never claim a command, test or deployment succeeded without its output | Mitigated |
+| KI-R2 | The owner's GitHub account and local installs (.NET 10 SDK, SQL Server Express or Developer, SSMS) must be in place by the end of Day 2 or the Day 15 release is at risk | H | Owner action list in the Day 2 plan | Open (Node 2 action) |
 | KI-R3 | The schedule has no spare days; Days 12–13 are the only effective buffer | H | Fixed scope; cut order: all Should items first, then dashboards/polish; never cut authorisation, IDs, money, or core tests | Open (monitor daily) |
 | KI-R4 | Financial rules (D-03, D-07) are decided by delegation but not verified against real business policy | H | Decided (D-03, D-07); engines configurable; unverified values flagged and listed in the pre-go-live confirmations | Mitigated |
 | KI-R5 | Role/scope decisions (D-09, D-11) are wrong for the real staffing | M | Decided (D-09, D-11) before schema work | Mitigated |
 | KI-R6 | Real customer data or documents used before staging is approved | H | Synthetic seed only; real data only after owner approval (Day 14–15) | Open |
-| KI-R7 | Provider terms: Vercel Hobby is non-commercial only; Supabase Free pauses after a week and has no automatic backups | H | D-26: provider-neutral build; free tiers for development and demo only; paid plans before live business use; manual export documented | Open (go-live gate) |
+| KI-R7 | Provider terms: Vercel Hobby is non-commercial only; Supabase Free pauses after a week and has no automatic backups | H | Superseded: the hosting stack was replaced (D-28, D-29) | Closed — superseded by D-29 |
+| KI-R8 | SQL Server Developer edition is licensed for development and testing only; Express has database size and resource limits | H | D-29: Developer is never used for production data; Express or a licensed edition is chosen at Nodes 14–15 | Open (go-live gate) |
 
 ## C. MVP limitations (by design)
 
@@ -68,12 +69,17 @@ Severity: **H** can cause wrong money, wrong identifiers, or blocked delivery ·
 - Deactivating a landline does not automatically change a dependent dial-up connection (D-10).
 - No merge tool for duplicate customers; duplicates are prevented by the exact contact-number lookup (D-22).
 - One central stock pool; no per-shop or per-city stock (D-23).
+- Customer portal logins are created by staff; there is no emailed invitation or self-service password reset (D-31).
 
 ## D. Template for later nodes
 
 | ID | Found in | Description | Sev. | Steps to reproduce | Status | Fix / commit |
 |---|---|---|---|---|---|---|
-| KI-N2-01 | Node 2 | Full `npm audit` reports 5 high findings, all one dev-only chain (eslint-config-next → @next/eslint-plugin-next → fast-glob → micromatch → braces, GHSA-vfj7-8cjw-p6xm: denial of service through deeply nested glob patterns). braces 3.0.3 is the latest release and is inside the affected range, so no patched version exists. Production dependencies: 0 findings. | S4 | `npm audit` | Accepted (no upstream fix); CI gates on `npm run audit:prod`; do not run `npm audit fix --force` (it downgrades the lint tooling to Next 14); re-check at Node 13 | D-27 |
-| KI-N2-02 | Node 2 | The GitHub Actions workflow `.github/workflows/ci.yml` has never run (no repository yet) | S3 | Push to GitHub and open the Actions tab | Open (owner action) | — |
+| KI-N2-01 | Node 2 | (Next.js baseline) Full `npm audit` reports 5 high findings, all one dev-only chain (eslint-config-next → @next/eslint-plugin-next → fast-glob → micromatch → braces, GHSA-vfj7-8cjw-p6xm: denial of service through deeply nested glob patterns). braces 3.0.3 is the latest release and is inside the affected range, so no patched version exists. Production dependencies: 0 findings. | S4 | `npm audit` | Closed — superseded by the stack change (D-28) | D-28 |
+| KI-N2-02 | Node 2 | (Next.js baseline) The GitHub Actions workflow `.github/workflows/ci.yml` has never run (no repository yet) | S3 | Push to GitHub and open the Actions tab | Closed — the Next.js workflow ran green on the owner's repository, then was replaced (see KI-N2-06) | D-28 |
 | KI-N2-03 | Node 2 | The Mermaid diagram in `architecture.md` has not been rendered | S4 | Open the file on GitHub | Open (check after the first push) | — |
+| KI-N2-04 | Node 2 (.NET) | The xUnit test project, and any code that needs NuGet packages, could not be restored or run in the build sandbox (NuGet is unreachable). The test sources were compiled and run against a minimal xUnit stand-in only | S3 | Run `dotnet test` on Windows | Open (owner action) | — |
+| KI-N2-05 | Node 2 (.NET) | `scripts/verify.ps1` and the PowerShell commands in the README were not run in the build sandbox (Linux) | S3 | Run `.\scripts\verify.ps1` | Open (owner action) | — |
+| KI-N2-06 | Node 2 (.NET) | The new .NET GitHub Actions workflow has never run | S3 | Push to GitHub and open the Actions tab | Open (owner action) | — |
+| KI-N2-07 | Node 2 (.NET) | With only HTTP configured the application logs "Failed to determine the https port for redirect"; harmless in development, but HTTPS must be configured or terminated in front of the application at deployment | S4 | Run the application on an http-only URL | Deferred to Node 15 | — |
 | KI-N… | Node | … | S1–S4 | … | Open / Fixed / Deferred | … |

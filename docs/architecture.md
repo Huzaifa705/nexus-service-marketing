@@ -2,28 +2,30 @@
 
 | | |
 |---|---|
-| Version | 1.2 — Node 2 baseline; the application scaffold exists, no business features or database yet |
-| Date | 2026-10-20 |
-| Status | BASELINE. All referenced decisions are DECIDED (2026-10-20, `decision-log.md`). The stack is confirmed in Node 2 (Day 2). |
+| Version | 1.3 — Node 2 baseline (.NET); the application scaffold exists, no business features or database yet |
+| Date | 2026-10-22 |
+| Status | BASELINE. All referenced decisions are DECIDED or SUPERSEDED (`decision-log.md`). The stack was changed to ASP.NET Core and SQL Server on 2026-10-22 (D-28). |
 
 ## 1. Purpose and scope
 
 A responsive web application that replaces the paper-based records of Nexus Communication System: orders, feasibility, connections and account IDs, equipment and vendors, billing and payments, a customer portal, and search. The MVP scope is in `requirements-matrix.md` (priority M, plus S if time allows).
 
-## 2. Proposed stack (from the 15-day guide; to be confirmed on Day 2)
+## 2. Technology stack (D-28)
 
 | Layer | Choice | Reason |
 |---|---|---|
-| Frontend | Next.js + TypeScript + Tailwind CSS + shadcn/ui | Fast responsive dashboards, forms, tables |
-| Backend | Next.js server actions / route handlers; domain logic in separate modules | One deployable app; logic stays testable |
-| Database | PostgreSQL (Supabase) | Constraints, transactions, migrations |
-| Auth | Supabase Auth; role checks on the server | No hand-rolled passwords or sessions |
-| Files | Private Supabase Storage bucket, signed time-limited URLs | Customer documents are sensitive |
-| Validation | Zod schemas shared by forms and server | Reject bad input at the boundary |
-| Tests | Vitest (domain logic), Playwright (end-to-end) | Money, IDs, permissions, full journeys |
-| Delivery | GitHub → Vercel; Supabase projects for staging and production | Low-ops |
+| Language and runtime | C# on .NET 10 (LTS) | Required software (.NET); strong typing and a `decimal` type for money |
+| Web | ASP.NET Core MVC with Razor views, Bootstrap and JavaScript | Server-rendered pages; fits the course list; responsive with no build step |
+| Database | SQL Server 2022 or 2025 (Express or Developer for development; see D-29) | Required software ("or later"); transactions, constraints, sequences, DECIMAL |
+| Data access | Entity Framework Core (SQL Server provider) with committed migrations; raw SQL where a statement must be exact (ID counters) | Migrations in version control; parameterised queries by default |
+| Auth | ASP.NET Core Identity (cookie sign-in, roles, lockout, password options) | No hand-rolled passwords or sessions |
+| Authorisation | Policy-based authorization using a permission matrix kept as data in code, plus scope checks in the data layer | One enforcement point that can be tested exhaustively |
+| Files | Private folder outside the web root, served by a permission-checked action with time-limited tokens (Data Protection API) | Customer documents are sensitive |
+| Validation | Server-side model validation (data annotations, `ModelState`) plus database constraints | Reject bad input at the boundary |
+| Tests | xUnit (domain logic; integration against a disposable SQL Server LocalDB database); Playwright for .NET (end-to-end) | Money, IDs, permissions, full journeys |
+| Delivery | GitHub with Actions CI; Windows host (IIS or Kestrel); separate staging and production databases | Matches the required stack |
 
-Decided (D-25, D-26): row-level security is enabled with deny-by-default on every table, and all data access goes through server code using the server-only service key; the permission matrix lives in code as data and is tested. Provider terms were verified on 2026-10-20 (D-26): free tiers are for local development and non-commercial demo staging only, and live business use needs paid Vercel (or equivalent) and Supabase plans. Installed baseline (Node 2, pinned by the lockfile, D-27): Node 22, Next.js 16.4.2, React 19.3.0, TypeScript 5.9.3, ESLint 9.39.5, Tailwind CSS 4.3.3, Vitest 5.0.5. Cache Components are off and shadcn/ui is initialised in Node 4 (D-27).
+Decided (D-25, D-28 to D-31): authorisation is enforced in application code with ASP.NET Core Identity roles and policies, never in the browser; the permission matrix lives in code as data and is tested; the application uses one least-privilege SQL login and users have no direct database access. SQL Server row-level security is optional hardening, not part of the MVP. Customer portal logins are created by staff (D-31). Installed baseline (Node 2, pinned by `global.json` and the project files): .NET SDK 10.0.1xx (verified with 10.0.113), net10.0, Microsoft.NET.Test.Sdk 17.14.1, xunit 2.9.3, xunit.runner.visualstudio 3.1.4. Entity Framework Core and the Identity packages are added in Node 3, with versions recorded then.
 
 ## 3. Architecture principles
 
@@ -46,7 +48,7 @@ Legend: ✔ full · R read-only · S scoped (Retail: customers with an order at,
 | Manage cities, shops | ✔ | R | R | R | – |
 | Manage plans, rates, tax, discount tiers | ✔ | R | R | R | R (active plans) |
 | Create/edit customer records | R | R | R | S ✔ | S (contact fields only) |
-| Invite customer to portal | ✔ | – | – | S ✔ | – |
+| Create customer portal login (temporary password) | ✔ | – | – | S ✔ | – |
 | Desk lookup (exact contact number or account ID, minimal view, any shop) | R | R | R | ✔ (minimal) | – |
 | Place an order | – | – | – | S ✔ | – (until D-08 changes) |
 | View orders | R (all) | R (all) | R (all) | S | S |
@@ -72,12 +74,12 @@ Legend: ✔ full · R read-only · S scoped (Retail: customers with an order at,
 
 | Group | Entity | Key fields and constraints |
 |---|---|---|
-| Identity | `profiles` | user id, role (enum of 5), link to employee or customer (a customer record has at most one login), active flag, must-change-password flag |
+| Identity | `profiles` | ASP.NET Core Identity user (`AspNetUsers`) extended with: role (Identity role, one of 5), link to employee or customer (a customer record has at most one login), active flag, must-change-password flag |
 | | `employees` | profile, department, shop (retail only) |
 | Organisation | `cities` | 3-char numeric `code` unique, name, active |
 | | `retail_shops` | city, name, address, contact, active |
 | Customers | `customers` | type (individual/corporate), full name, organisation name (corporate), billing address and city, optional postal code, primary and alternate contact numbers, optional email (required for portal login), address-proof type (no ID numbers stored), created-by shop, nullable `legacy_account_id` |
-| | `customer_documents` | customer, kind (address proof/application/receipt), storage path, year, uploaded by |
+| | `customer_documents` | customer, kind (address proof/application/receipt), stored file name (private folder outside the web root), year, uploaded by |
 | Catalogue | `connection_plans` | type (D/B/T), kind (hourly/unlimited/rental), name, active, `verified` flag |
 | | `plan_prices` | plan, amount, currency, validity, hours, effective from/to |
 | | `plan_rates` | plan, call type (local/STD/messaging), rate per unit, unit |
@@ -104,6 +106,8 @@ Legend: ✔ full · R read-only · S scoped (Retail: customers with an order at,
 | | `payment_allocations` | payment, bill, amount |
 | Other | `customer_feedback` | customer, order or connection, rating, comment |
 | | `audit_logs` | actor, action, entity, before/after, time |
+
+Physical table and column names follow Entity Framework Core conventions (PascalCase). Money columns are `decimal(18,2)` and rates `decimal(18,4)`.
 
 ```mermaid
 erDiagram
@@ -137,7 +141,7 @@ erDiagram
 
 - **Order ID:** `^[DTB][0-9]{10}$`. Counter scope per letter (`order:D`, `order:T`, `order:B`) by default.
 - **Account ID:** `^[DBT][0-9]{15}$` = letter + 3-digit city code + 12-digit serial. Counter scope `account` (one global serial) by default.
-- **Mechanism:** inside one database transaction, lock the counter row, increment it, build the ID and insert the record. A rollback releases the increment, so there are no gaps for committed records. A unique constraint and a CHECK on the format are the backstop.
+- **Mechanism:** inside one database transaction, run `UPDATE id_counters SET last_value = last_value + 1 OUTPUT inserted.last_value WHERE scope = @scope` (the row lock is held until commit), build the ID from the returned value and insert the record. A rollback releases the increment, so there are no gaps for committed records. A unique index and a CHECK constraint on the format are the backstop.
 - **Account ID is issued only when the connection is created** from a Feasible order, and is never edited or reused.
 - **Consistency checks:** the account ID's type letter must equal the order's type, and its city code comes from the order's installation city.
 - **Bill and receipt numbers** (`BL-YYYY-NNNNNN`, `RC-YYYY-NNNNNN`) use per-year counters in `id_counters` with the same lock-increment-insert pattern.
@@ -196,40 +200,43 @@ Worked example (TV-T2): rental 350.00 (the advance) + deposit 500.00 in the 10�
 
 Timing (D-14): the initial bill at activation covers the first-period rental (the "advance") plus the security deposit; later bills cover the next validity period's rental in advance plus the previous period's usage in arrears. A bulk-discount tier comes from the size of the order's bulk application (D-03).
 
-All arithmetic uses decimal types. The bill stores the plan version, rates, tax rate and discount percent used. Worked test vectors are in `test-plan.md` §4.
+All arithmetic uses decimal types (C# `decimal`, SQL Server `decimal(18,2)`; never `float`). The bill stores the plan version, rates, tax rate and discount percent used. Worked test vectors are in `test-plan.md` §4.
 
 ## 9. Security and privacy
 
 - Authorisation on the server for every mutation; negative tests for each role (AUTH-02).
 - Object-level checks on every read by ID to prevent IDOR (customers, shops, documents, bills).
-- Private storage bucket; signed URLs with short expiry; file type and size validation.
-- Secrets only in provider dashboards; `.env.example` lists names only; service-role keys never reach browser code.
-- Input validation with shared schemas; parameterised queries only; output encoding to prevent XSS.
+- Private folder outside the web root; downloads only through a permission-checked action with time-limited tokens; file type and size validation.
+- Secrets only in `dotnet user-secrets`, environment variables or the host's secret store; no connection string with a password in Git; the database login used by the application has least privilege.
+- Server-side model validation; parameterised queries only (Entity Framework Core or `SqlParameter`); Razor output encoding to prevent XSS; antiforgery tokens on every state-changing request.
 - Audit log for sensitive actions; least-privilege named accounts; no shared default credentials at release.
 - Public lookup is off by default (D-12).
-- Authorisation (D-25): row-level security is deny-by-default on all tables and the browser keys grant nothing; all access goes through server code with the service key; the permission matrix is kept as data and tested.
+- Authorisation (D-25, D-28): ASP.NET Core Identity roles with policy-based authorization; the permission matrix is kept as data and tested; scope filters in the data layer; users have no direct database access.
 - Document links expire after at most 300 seconds; uploads are limited to PDF, JPEG and PNG up to 5 MB (D-25).
-- Passwords are provider-managed with a minimum length of 10; temporary credentials for new employees must be changed at first sign-in; multi-factor authentication for Admin and Accounts is recommended after the MVP.
+- Passwords are managed by ASP.NET Core Identity (salted hash, minimum length 10, lockout on repeated failures); temporary credentials must be changed at first sign-in (D-31); multi-factor authentication for Admin and Accounts is recommended after the MVP.
+- Sign-in cookies are HttpOnly, Secure and SameSite; HTTPS is required outside Development (HSTS).
 
-## 10. Proposed repository layout (created on Day 2)
+## 10. Repository layout (Node 2)
 
 ```
-/app                 routes, layouts, route handlers
-/components          shared UI
-/lib/domain          pure business logic (ids, billing, state machines, permissions)
-/lib/db              data access and transactions
-/supabase/migrations committed SQL migrations
-/tests               unit, integration and e2e tests
-/docs                the five project documents (verified by scripts/check-docs.mjs)
-/scripts             tooling, including check-docs.mjs
-/.github/workflows   CI
+NexusServiceMarketing.sln
+global.json              SDK pin (.NET 10)
+Directory.Build.props    shared settings: nullable, warnings as errors, NuGet audit
+src/Nexus.Web/           ASP.NET Core MVC application (controllers, views, middleware)
+tests/Nexus.Tests/       xUnit tests (unit and integration; Playwright added in Node 12)
+tools/Nexus.DocsCheck/   documentation consistency checker
+docs/                    the five project documents (plus the audit report)
+scripts/verify.ps1       one-command local verification (Windows PowerShell)
+.github/workflows/       CI
 ```
+
+Planned additions: `src/Nexus.Domain` (pure business logic: identifiers, billing, state machines, permissions) and `src/Nexus.Data` (Entity Framework Core context, migrations and data access) are created in Nodes 3–5, when they have content.
 
 ## 11. Environments
 
 | Environment | Purpose | Data |
 |---|---|---|
-| Local | Development | Synthetic seed |
+| Local | Development (LocalDB or SQL Server Express/Developer) | Synthetic seed |
 | Staging | Acceptance testing (Day 14) | Synthetic, labelled demo data |
 | Production | Release (Day 15, subject to D-18) | Real data only after owner approval |
 

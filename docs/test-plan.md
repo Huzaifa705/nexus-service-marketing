@@ -2,19 +2,19 @@
 
 | | |
 |---|---|
-| Version | 1.2 — Node 2 baseline — baseline tests written and passing (see §7); all other cases are planned only |
-| Date | 2026-10-20 |
+| Version | 1.3 — Node 2 baseline (.NET) — baseline tests written (see §7); all other cases are planned only |
+| Date | 2026-10-22 |
 | Status | All cases below are `Not started`. Money-related vectors follow the decided rule set (D-03, D-07, D-14) and must be recalculated if either decision is reopened. |
 
 ## 1. Strategy
 
 | Level | Tool | What it proves |
 |---|---|---|
-| Unit | Vitest | Pure domain logic: ID formats, discount tiers, tax/rounding, state transitions, permission rules |
-| Integration | Vitest against a test database | Transactions, constraints, concurrency (IDs, stock, payments), role enforcement on every mutation |
-| End-to-end | Playwright | Complete journeys through the real UI |
+| Unit | xUnit | Pure domain logic: ID formats, discount tiers, tax/rounding, state transitions, permission rules |
+| Integration | xUnit against a disposable SQL Server (LocalDB) database | Transactions, constraints, concurrency (IDs, stock, payments), role enforcement on every mutation |
+| End-to-end | Playwright for .NET | Complete journeys through the real UI |
 | Security review | Manual checklist + dependency audit | IDOR, uploads, secrets, injection, XSS |
-| Documentation | `node scripts/check-docs.mjs` | Document consistency: references, IDs, Must-requirement test coverage |
+| Documentation | `dotnet run --project tools/Nexus.DocsCheck -- docs` | Document consistency: references, IDs, Must-requirement test coverage |
 | Acceptance (UAT) | Scripted scenario with the owner | Business correctness on staging (Day 14) |
 
 Priorities if time is short (from the guide): authorisation, identifier correctness, money arithmetic, and the full order-to-bill journey come before anything cosmetic.
@@ -27,7 +27,7 @@ Priorities if time is short (from the guide): authorisation, identifier correctn
 
 ## 3. Test cases
 
-Status for every case: `Not started`, except T-NFR-03, which is implemented in `tests/docs-check.test.ts` and passing (see §7).
+Status for every case: `Not started`, except T-NFR-03, which is implemented in `tests/Nexus.Tests/DocsConsistencyTests.cs` (evidence and its limits in §7).
 
 ### 3.1 Authentication, roles, scope
 
@@ -40,7 +40,7 @@ Status for every case: `Not started`, except T-NFR-03, which is implemented in `
 | T-AUTH-05 | Security | Customer A requests Customer B's order, bill, connection by ID | 403/404 | AUTH-05, SCH-05 | N10 |
 | T-AUTH-06 | Integration | Shop-1 retail user reads or edits shop-2 orders | Denied (D-11: Retail = own shop) | AUTH-04 | N5 |
 | T-AUTH-07 | Integration | Admin creates, edits and deactivates an employee; Accounts, Technical and Retail try the same | Admin succeeds and each role change is audited; others 403 | AUTH-03 | N4 |
-| T-AUTH-08 | Integration | Admin invites a customer; Retail invites a customer of its own shop and of another shop; invite the same customer twice; use the customer login on a staff route | Admin and own-shop invites succeed; other-shop invite denied; second invite rejected; staff route returns 403 | AUTH-07 | N10 |
+| T-AUTH-08 | Integration | Admin creates a customer portal login; Retail creates one for a customer of its own shop and of another shop; create a second login for the same customer; use the customer login on a staff route | Admin and own-shop creation succeed (temporary password shown once); other-shop creation denied; second login rejected; staff route returns 403 | AUTH-07 | N10 |
 | T-AUTH-09 | Integration | Create users with a 9-character and a 10-character password; sign in with temporary credentials | 9 rejected, 10 accepted; the temporary-credential user must change the password before reaching any page | AUTH-08 | N3 |
 | T-ADM-01 | Unit | City codes `001` valid; `01`, `abcd`, `12a`, duplicate rejected | Only valid unique codes saved | ADM-01 | N4 |
 | T-ADM-02 | Integration | Delete a shop, vendor or plan that has history | Blocked; deactivate offered | ADM-05, PLN-01 | N4 |
@@ -152,7 +152,7 @@ Status for every case: `Not started`, except T-NFR-03, which is implemented in `
 | T-RPT-01 | Integration | Retail opens the till-date lists (orders, statuses, connections, bills, payments) | Only own-shop records; counts match the seed | RPT-01 | N10 |
 | T-DOC-01 | Integration | Upload disallowed type and oversize file | Rejected | DOC-03 | N11 |
 | T-DOC-02 | Security | Open a document URL without signing in | Denied | DOC-01 | N11 |
-| T-DOC-03 | Security | Reuse a signed URL after expiry | Denied | DOC-01 | N11 |
+| T-DOC-03 | Security | Reuse a download link after it expires | Denied | DOC-01 | N11 |
 | T-DOC-04 | Integration | Filter documents by year and city | Correct results | DOC-02 | N11 |
 | T-DOC-05 | Integration | Open a customer's document list as Retail (own shop), Retail (other shop) and the customer | Own shop and owner see it; other shop denied | CUS-03, DOC-01 | N11 |
 | T-AUD-01 | Integration | Perform each audited action | An audit row exists for each | AUD-01 | N11 |
@@ -164,11 +164,11 @@ Status for every case: `Not started`, except T-NFR-03, which is implemented in `
 |---|---|---|---|---|---|
 | T-SEC-01 | Security | Script text in names, notes, reasons | Rendered inert (no XSS) | NFR-02 | N13 |
 | T-SEC-02 | Security | SQL metacharacters in search fields | No injection; safe results | NFR-02 | N13 |
-| T-SEC-03 | Security | Scan repository and browser bundle for secrets | None found; service-role key not in bundle | NFR-03 | N13 |
-| T-SEC-04 | Security | Dependency audit | No critical/high issues affecting release | NFR-03 | N13 |
+| T-SEC-03 | Security | Scan the repository and the published output for secrets | None found; no password or connection secret in Git or in published files | NFR-03 | N13 |
+| T-SEC-04 | Security | Dependency audit (`dotnet list package --vulnerable --include-transitive`) | No critical/high issues affecting release | NFR-03 | N13 |
 | T-NFR-01 | E2E | Open login, order list, order form and bill view at 360 px width | No horizontal scroll | NFR-01 | N12 |
 | T-NFR-02 | Integration | Run the seed script and inspect users and records | Every demo user and record is labelled synthetic; no real documents present | NFR-04 | N14 |
-| T-NFR-03 | Automated | `npm run docs:check` | Exit code 0 | NFR-07 | every node |
+| T-NFR-03 | Automated | `dotnet run --project tools/Nexus.DocsCheck -- docs` and `DocsConsistencyTests` | Exit code 0; tests pass | NFR-07 | every node |
 | T-E2E-01 | E2E | Retail creates customer and order → feasibility → connection → issue equipment → bill → payment → due | Every step persists; due reconciles | all core | N12 |
 | T-E2E-02 | E2E | Not-feasible order journey | No connection created; reason visible | CON-01 | N12 |
 | T-E2E-03 | E2E | Customer portal journey | Own order, connection, bill, feedback | PRT-01…PRT-04 | N12 |
@@ -251,6 +251,10 @@ Each test run records: the command, the date, and the exact pass/fail output. Un
 
 | Date | Command | Result | Notes |
 |---|---|---|---|
-| 2026-10-20 | `npm run verify` (docs check, lint, type-check, tests, build) in the build sandbox | Exit 0. Lint: 0 warnings. Vitest: 3 files, 4 tests passed (health endpoint, navigation, documents exist, documents consistent). Production build succeeded; routes `/` (static), `/health` (dynamic). | Node 2 baseline. T-NFR-03 passing. |
-| 2026-10-20 | `next start`, then `curl` of `/`, `/health`, an unknown route | `/` 200, `/health` 200 JSON with `Cache-Control: no-store`, unknown route 404; baseline security headers present; no `X-Powered-By`; compiled CSS contains Tailwind classes | Manual runtime check, not an automated test |
-| 2026-10-20 | `npm audit --omit=dev` | 0 vulnerabilities | Full `npm audit`: 5 high, one dev-only chain with no upstream fix (KI-N2-01) |
+| 2026-10-20 (Next.js baseline, superseded by D-28) | `npm run verify` (docs check, lint, type-check, tests, build) in the build sandbox | Exit 0. Lint: 0 warnings. Vitest: 3 files, 4 tests passed (health endpoint, navigation, documents exist, documents consistent). Production build succeeded; routes `/` (static), `/health` (dynamic). | Node 2 baseline. T-NFR-03 passing. |
+| 2026-10-20 (Next.js baseline, superseded by D-28) | `next start`, then `curl` of `/`, `/health`, an unknown route | `/` 200, `/health` 200 JSON with `Cache-Control: no-store`, unknown route 404; baseline security headers present; no `X-Powered-By`; compiled CSS contains Tailwind classes | Manual runtime check, not an automated test |
+| 2026-10-20 (Next.js baseline, superseded by D-28) | `npm audit --omit=dev` | 0 vulnerabilities | Full `npm audit`: 5 high, one dev-only chain with no upstream fix (KI-N2-01) |
+| 2026-10-22 | `dotnet build` (Release) of `src/Nexus.Web` and `tools/Nexus.DocsCheck` in the build sandbox (.NET SDK 10.0.113) | Build succeeded, 0 warnings, 0 errors | Warnings are errors. The test project is not built there because NuGet is unreachable (KI-N2-04) |
+| 2026-10-22 | C# documentation checker versus the original Node checker, on the defective v1.0 documents | Identical: 38 errors, 29 warnings, 67 identical lines; clean on the v1.3 documents and on CRLF copies | Port parity |
+| 2026-10-22 | Test sources compiled against a minimal xUnit stand-in and run | 5 of 5 test methods passed (health, navigation, three document tests) | Verifies test logic only; the real xUnit run is the owner's (KI-N2-04) |
+| 2026-10-22 | `dotnet Nexus.Web.dll`, then `curl` of `/`, `/health`, static files, an error page, unknown routes | `/` 200; `/health` 200 JSON with `Cache-Control: no-store`; static files 200; unknown route 404; baseline security headers present; no `Server` header | Manual runtime check, not an automated test |

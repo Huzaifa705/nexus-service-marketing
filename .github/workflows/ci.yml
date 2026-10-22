@@ -14,14 +14,15 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-dotnet@v5
         with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
-      - run: npm run docs:check
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run audit:prod
-      - run: npm run build
+          global-json-file: global.json
+      - name: Documentation check
+        run: dotnet run --project tools/Nexus.DocsCheck -c Release -- docs
+      - run: dotnet restore NexusServiceMarketing.sln
+      - run: dotnet build NexusServiceMarketing.sln -c Release --no-restore
+      - run: dotnet test NexusServiceMarketing.sln -c Release --no-build
+      - name: Vulnerable packages
+        run: |
+          dotnet list NexusServiceMarketing.sln package --vulnerable --include-transitive 2>&1 | tee vulnerable.txt
+          if grep -q "has the following vulnerable packages" vulnerable.txt; then echo "Vulnerable packages found"; exit 1; fi

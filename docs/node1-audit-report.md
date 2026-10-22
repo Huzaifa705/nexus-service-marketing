@@ -5,7 +5,7 @@
 | Date | 2026-10-20 |
 | Scope | The five Node 1 documents in the Project context, checked against each other and against the original specification (S1) |
 | Result | **READY for Node 2** (all objective criteria below pass; go-live confirmations remain and do not block Nodes 2–14) |
-| Method | (1) A dependency-free checker, `scripts/check-docs.mjs`, run before and after the fixes. (2) A manual read of the eight areas you named. (3) Re-computation of every money example with exact decimal arithmetic. |
+| Method | (1) A dependency-free checker (a Node script at the time; now the C# tool `tools/Nexus.DocsCheck`, which runs the same checks), run before and after the fixes. (2) A manual read of the eight areas you named. (3) Re-computation of every money example with exact decimal arithmetic. |
 
 ## 1. Files
 
@@ -43,7 +43,7 @@ The Project holds `architecture.md`, `decision-log.md`, `known-issues.md`, `requ
 9. **Deposit refunds** now use the deposit actually charged, after any bulk discount.
 10. **Existing landline** verification defined: a T account in the system, or a legacy identifier flagged `legacy_unverified`.
 11. **Authentication.** The customer-invitation capability, password policy and the open "row-level security as well" question were undecided; now D-25.
-12. **Hosting.** The stack assumed free tiers would do. Verified on 2026-10-20: Vercel Hobby is non-commercial only, and Supabase Free pauses after a week of inactivity and has no automatic backups (D-26).
+12. **Hosting.** The stack assumed free tiers would do. Verified on 2026-10-20: Vercel Hobby is non-commercial only, and Supabase Free pauses after a week of inactivity and has no automatic backups (D-26; superseded by D-29 after the stack change).
 
 **Acceptance criteria and tests**
 - 27 Must requirements had no test; each now has one. Should requirements have a conditional test block.
@@ -76,12 +76,16 @@ New: D-22 desk lookup, D-23 stock model and equipment timing, D-24 transition ac
 
 - **Commercial values are unverified:** prices, the 12.24% tax rate, currency, the two assumed STD values, bulk tiers and "advance" (the 8 pre-go-live confirmations in `decision-log.md`). Day 15 stays a demo/staging release until you confirm them.
 - **Schedule (KI-R3):** no spare days; Days 12–13 are the only buffer.
-- **Provider terms (KI-R7):** live business use needs paid plans; whether this deployment is commercial is your call.
+- **Provider terms (KI-R7):** closed after the stack change; the equivalent risk is now KI-R8 (SQL Server edition and licensing).
 - **Real data (KI-R6):** synthetic data only until staging is approved.
 
 ## 7. Actions only you can do
 
 1. Create a private GitHub repository and push the Node 2 archive (steps in the Node 2 handoff).
-2. Create Supabase and Vercel accounts (needed from Node 3 / Node 14, not before).
+2. (Superseded by the stack change: install the .NET 10 SDK and SQL Server instead; see the addendum.)
 3. Upload the v1.1 documents to the Project files, replacing v1.0.
 4. Before any live use: decide whether the deployment is commercial and confirm the eight go-live items.
+
+## Addendum (2026-10-22): stack change
+
+The project's required software (.NET and SQL Server) was reported after this audit. Result: the technology stack changed (D-28), D-26 and D-27 are superseded by D-29 and D-30, D-25 and D-12 are amended, and D-31 was added. Every Node 1 finding above, the requirements and decisions D-01 to D-24 stand. The checker was ported to C# and produces identical results to the Node original on the defective v1.0 documents (38 errors, 29 warnings, 67 identical lines). The owner's actions are now: push the re-platformed repository, install the .NET 10 SDK and SQL Server (Express or Developer) with SSMS, and run `.\scripts\verify.ps1`.

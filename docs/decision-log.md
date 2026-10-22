@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| Version | 1.2 — Node 2 baseline |
-| Date | 2026-10-20 |
+| Version | 1.3 — Node 2 baseline (.NET) |
+| Date | 2026-10-22 |
 | Rule | On 2026-10-20 the owner accepted all recommended defaults and delegated every remaining gap to me ("assume what is appropriate; do what normally happens in comparable software; double-check"). Every item below is therefore **DECIDED (by delegation)**. These decisions fix system behaviour and configuration. They do not verify real-world facts: prices, the tax rate and the currency stay flagged unverified until confirmed (see "Pre-go-live confirmations"). |
 | Authority | On 2026-10-20 the owner also authorised me to make all routine technical, architectural, documentation and project-management decisions without per-step approval, to resolve specification ambiguities by choosing the safest and most maintainable interpretation, and to proceed through the nodes autonomously. Every such decision is recorded here with its rationale. Anything that needs the owner's account, a secret or an external approval is listed in the audit report as an owner action. |
 
@@ -25,7 +25,7 @@
 | D-09 | Equipment/stock split between Admin and Technical | T1 | DECIDED | Day 3 | Admin = catalogue/vendors/POs/corrections; Technical = receipt/issue/return/damage |
 | D-10 | Combined landline + dial-up applications | T1 | DECIDED | Day 5 | Two linked orders (T and D), each with its own IDs |
 | D-11 | Data scope per role (shop/city) | T1 | DECIDED | Day 3 | Retail = own shop; Admin, Accounts, Technical = all |
-| D-12 | Customer login identity and public lookup | T2 | DECIDED | Day 10 | Email login, staff-invited; no public lookup |
+| D-12 | Customer login identity and public lookup | T2 | DECIDED | Day 10 | Email as login name; logins created by staff (D-31); no public lookup |
 | D-13 | Feasibility = manual technical decision | T2 | DECIDED | Day 6 | Manual with structured fields |
 | D-14 | Billing mechanics (cycle, usage entry, status effect, temp-inactive, credit) | T2 | DECIDED | Day 8 | Manual by Accounts; no automatic suspension |
 | D-15 | Equipment charges | T2 | DECIDED | Day 8 | Optional charge per product; blank = free |
@@ -38,9 +38,13 @@
 | D-22 | Cross-shop desk lookup (customer by phone, connection for payments) | T2 | DECIDED | Day 5 | Exact-match, minimal-view lookups for Retail; everything else stays own-shop |
 | D-23 | Stock model, equipment issue timing, plan-to-equipment options | T2 | DECIDED | Day 8 | One central stock pool; "Awaiting equipment" is advisory; issue follows connection creation; plans list eligible equipment |
 | D-24 | Order-status transitions: who may perform each | T2 | DECIDED | Day 5 | Actor table in architecture.md §7 |
-| D-25 | Authorisation strategy, password policy, portal invitations, document limits | T2 | DECIDED | Day 3 | Server-side checks + RLS deny-by-default; ≥10-char passwords; staff-invited customers; signed URLs ≤300 s |
-| D-26 | Hosting plan constraints (Vercel, Supabase) | T3 | DECIDED | Day 2 / go-live | Provider-neutral build; free tiers for development and non-commercial demo only; paid plans before live business use |
-| D-27 | Framework configuration and tooling (Node 2) | T2 | DECIDED | Day 2 | Cache Components off; system fonts; shadcn/ui deferred to Node 4; baseline security headers; CI gates on the production audit |
+| D-25 | Authorisation strategy, password policy, portal invitations, document limits | T2 | DECIDED | Day 3 | Server-side policy checks (Identity roles + permission matrix as data); ≥10-char passwords; staff-created customer logins (D-31); time-limited document links ≤300 s |
+| D-26 | Hosting plan constraints (Vercel, Supabase) | T3 | SUPERSEDED | Day 2 / go-live | Superseded by D-29 |
+| D-27 | Framework configuration and tooling (Node 2) | T2 | SUPERSEDED | Day 2 | Superseded by D-30 |
+| D-28 | Technology stack (course software requirement) | T1 | DECIDED | Day 2 | ASP.NET Core MVC (.NET 10, C#), SQL Server 2022/2025, Entity Framework Core, ASP.NET Core Identity, xUnit; replaces Next.js, Supabase and Vercel |
+| D-29 | Database edition, hosting and backup constraints (.NET stack) | T3 | DECIDED | Day 2 / go-live | Express or Developer for development; Developer never for production data; Windows host (IIS or Kestrel); SQL Server backup file with a rehearsed restore |
+| D-30 | Framework configuration and tooling (Node 2, .NET) | T2 | DECIDED | Day 2 | .NET 10 pin, warnings as errors, NuGet audit gate, security headers, C# documentation checker, CI |
+| D-31 | Customer portal credentials without an email provider | T2 | DECIDED | Day 10 | Staff create the login with a one-time temporary password; email invitation and self-service reset are post-MVP |
 
 ---
 
@@ -180,6 +184,7 @@
 - **Alternatives:** account ID + PIN; phone OTP (needs an SMS provider, which is out of scope).
 - **Decision (2026-10-20, by delegation):** Default accepted: email + password, staff-invited; no public lookup in the MVP.
 - **Amendment (v1.1, 2026-10-20, audit):** Portal invitations are sent by Admin, or by Retail for customers of their own shop (D-25). One login maps to exactly one customer record, and a customer login can never reach staff routes.
+- **Amendment (v1.3, 2026-10-22, stack change):** Customer logins are created by staff with a one-time temporary password (D-31); the email address is the login name. Email-based invitations need an email provider, which the MVP excludes.
 
 ## D-13 Feasibility is a manual technical decision
 
@@ -222,7 +227,7 @@
 ## D-18 Working mode and release target
 
 - **Status / Tier / Needed by:** DECIDED · T1 · Day 2 · **Affects:** all nodes, N14–N15
-- **Why it matters:** in this chat I can create downloadable files, but I cannot reach your GitHub, Supabase or Vercel accounts or run commands against your repository.
+- **Why it matters:** in this chat I can create downloadable files, but I cannot reach your GitHub account or run commands against your repository.
 - **Questions:**
   - (a) Will I work in a coding workspace connected to your repository (preferred, so I can run lint, tests and builds and report real output), or will I produce files and commands that you run and paste back?
   - (b) Should Day 15 be a live release for real customers, or a staging/demo-grade release? A live release adds real-data protection, backup and sign-off requirements.
@@ -230,6 +235,7 @@
 - **Default:** (a) decided on Day 2 from what is available; (b) staging-grade MVP with a go/no-go gate on Day 15; (c) you.
 - **Decision (2026-10-20, by delegation):** (a) Files and commands in this chat; you run commands and paste the full output back. If a repository-connected coding workspace is available on Day 2, I use it instead. (b) Day 15 = staging-grade MVP with a go/no-go release gate; live use only after the pre-go-live confirmations. (c) The owner approves business rules.
 - **Amendment (v1.1, 2026-10-20, audit):** Refinement: the working sandbox can run Node, npm and git, so Node 2 is built and verified there with real command output and delivered as a downloadable archive; the owner creates the GitHub repository and pushes it (account action). If a repository-connected workspace becomes available it is used instead.
+- **Amendment (v1.3, 2026-10-22, stack change):** The build sandbox runs the .NET 10 SDK from the Ubuntu archive but cannot reach NuGet, so projects without external packages (the web application and the documentation checker) are built and run there, and the test project is compile-checked against a minimal xUnit stand-in. Anything that needs NuGet packages (xUnit, Entity Framework Core) is verified by the owner on Windows with `dotnet test`, with the output pasted back. The GitHub repository was reused: the Next.js state is kept under the Git tag `nextjs-baseline`.
 
 ## D-19 Enquiry log
 
@@ -288,10 +294,13 @@
   - Customer portal invitations are sent by email by Admin, or by Retail for customers of their own shop; one login per customer.
   - Document links expire after at most 300 seconds; uploads are limited to PDF, JPEG and PNG up to 5 MB (both configurable).
 - **Rationale:** one enforcement point that can be tested exhaustively, with the database as a backstop against accidental exposure.
+- **Amendment (v1.3, 2026-10-22, stack change):** The mechanism changes with the stack (D-28). Row-level security and the service key are replaced by ASP.NET Core Identity roles with policy-based authorization, the permission matrix kept as data in code and tested, scope filters applied in the data layer, and one least-privilege SQL login used only by the application (users have no direct database access). SQL Server's native row-level security is optional hardening, not part of the MVP. Passwords use ASP.NET Core Identity password options (minimum length 10) and lockout. Customer logins: see D-31 (no email invitation). Document links are time-limited tokens from the ASP.NET Core Data Protection API on a permission-checked download action; files live outside the web root. The limits (at most 300 seconds; PDF, JPEG and PNG up to 5 MB) are unchanged.
+
 
 ## D-26 Hosting plan constraints (verified 2026-10-20)
 
-- **Status / Tier / Needed by:** DECIDED · T3 · Day 2 / go-live · **Affects:** NFR-05
+- **Status / Tier / Needed by:** SUPERSEDED · T3 · Day 2 / go-live · **Affects:** none (superseded by D-29)
+- **Superseded by D-29 (2026-10-22):** the technology stack changed (D-28); the text below is kept as history.
 - **Sources:** Vercel fair-use guidelines (https://vercel.com/docs/limits/fair-use-guidelines); Supabase pricing (https://supabase.com/pricing.md).
 - **Findings:** the Vercel Hobby plan is restricted to non-commercial personal use, and commercial use (defined to include a deployment used for anyone's financial gain, even a paid consultant writing the code) requires Pro or Enterprise. Supabase Free allows 2 active projects, pauses projects after one week of inactivity and does not include automatic backups; paid plans do not pause and Pro keeps daily backups for 7 days.
 - **Decision (2026-10-20, by delegation):** build provider-neutral (a standard Next.js build that runs on any Node host, with Postgres on Supabase). Free tiers are for local development and non-commercial demo staging only. Staging and production are separate Supabase projects. Any live business use needs paid plans on both services (or an equivalent host). Until then a manual database export, documented in the Day 15 handover, is the backup mechanism. Terms are re-verified at Node 14. Whether the deployment counts as commercial is for the owner to determine; I do not assume either way.
@@ -299,7 +308,8 @@
 
 ## D-27 Framework configuration and tooling (Node 2)
 
-- **Status / Tier / Needed by:** DECIDED · T2 · Day 2 · **Affects:** NFR-03
+- **Status / Tier / Needed by:** SUPERSEDED · T2 · Day 2 · **Affects:** none (superseded by D-30)
+- **Superseded by D-30 (2026-10-22):** the technology stack changed (D-28); the text below is kept as history.
 - **Source evidence:** the guide's stack (Next.js, TypeScript, Tailwind CSS, shadcn/ui, Vitest, Playwright, GitHub, Vercel, Supabase). The generator's defaults on 2026-10-20 enable Cache Components and partial prefetching, load fonts from Google at build time, and ignore every `.env*` file including the template.
 - **Decision (2026-10-20, by delegation):**
   - Installed and pinned by the lockfile: Node 22, Next.js 16.4.2, React 19.3.0, TypeScript 5.9.3 (the generator's 5.x), ESLint 9.39.5, Tailwind CSS 4.3.3, Vitest 5.0.5.
@@ -312,6 +322,45 @@
   - The full `npm audit` reports 5 high findings that are one dev-only chain ending in `braces`, for which no patched release exists (KI-N2-01). `npm audit fix --force` is not used because it downgrades the Next.js lint tooling to version 14. CI gates on `npm audit --omit=dev --audit-level=high`, which reports 0 findings.
   - The initial commit uses a neutral author identity; the owner's identity is used from their first commit.
 - **Rationale:** the safest and most maintainable baseline for a data-sensitive application, with each deviation from the generator's defaults recorded.
+
+## D-28 Technology stack (course software requirement)
+
+- **Status / Tier / Needed by:** DECIDED · T1 · Day 2 · **Affects:** AUTH-01, DOC-01
+- **Source evidence:** The owner reported on 2026-10-22 that the project's software requirement is: either or a combination of Notepad/HTML editor/Java editor, Dreamweaver/JavaScript, j2sdk 1.4.1_02 or later / .NET / J2EE, JSP/Servlets, EJB/Struts, JDBC, SQL Server 2000 or later / Oracle 9i / MS Access, and a JDBC driver. The original specification (S1) and the guide (G1) did not contain it, so Nodes 1–2 followed the guide's Next.js, Supabase and Vercel stack.
+- **Options:** **A (chosen)** .NET with SQL Server: ASP.NET Core MVC in C#, SQL Server, HTML/JavaScript front end. **B** Java with JSP/Servlets and JDBC against SQL Server: also permitted, but more setup and no existing tooling. **C** keep the Next.js stack: it is not on the list. **D** classic ASP.NET Web Forms on .NET Framework: permitted, but older and Windows-only; only if the course specifically requires it.
+- **Decision (2026-10-22, by delegation):** Option A with current versions: .NET 10 (LTS) and ASP.NET Core MVC in C#; SQL Server 2022 or 2025 (the list says "or later"); Entity Framework Core (SQL Server provider) for data access and migrations; ASP.NET Core Identity for sign-in, roles and password rules; Razor views, Bootstrap and JavaScript for the front end; xUnit for tests, with Playwright for .NET for browser tests from Node 12; GitHub for source control. Business decisions D-01 to D-24 are unchanged. The tool choices in D-25 to D-27 are replaced (D-25 amended; D-26 and D-27 superseded by D-29 and D-30). Nodes 1–2 are redone on the new stack; the Next.js baseline is kept under the Git tag `nextjs-baseline`.
+- **Rationale:** meets the stated software requirement with the least rework. Only tool-dependent decisions change; the analysis, requirements and tests carry over, and SQL Server supplies the transactions, constraints, decimals and sequences that the identifier and billing rules need.
+- **If the course requires classic Web Forms on .NET Framework:** the scaffold and some Node 3–10 tasks change; the requirements and business decisions do not.
+
+## D-29 Database edition, hosting and backup constraints (verified 2026-10-22)
+
+- **Status / Tier / Needed by:** DECIDED · T3 · Day 2 / go-live · **Affects:** NFR-05
+- **Source:** Microsoft, "Editions and components of SQL Server 2025" (https://learn.microsoft.com/en-us/sql/sql-server/editions-and-components-of-sql-server-2025).
+- **Findings:** SQL Server 2025 Express allows databases up to 50 GB (earlier Express versions allow 10 GB). Developer edition has the full feature set but is licensed for development and testing only, not for production use.
+- **Decision (2026-10-22, by delegation):** development uses SQL Server Express or Developer (2022 or 2025) or LocalDB; staging may use Express; production uses Express if its limits suit the data volume, otherwise a licensed edition. Developer edition is never used for production data. The application runs on Windows under IIS or on Kestrel; the host is chosen at Nodes 14–15. Backup is a SQL Server backup file (`BACKUP DATABASE`) with a documented, rehearsed restore. Whether the deployment counts as commercial is for the owner to determine; I do not assume either way. Edition limits and licensing are re-verified at Node 14.
+- **Rationale:** avoids building on an edition the licence does not allow, without blocking development.
+
+## D-30 Framework configuration and tooling (Node 2, .NET)
+
+- **Status / Tier / Needed by:** DECIDED · T2 · Day 2 · **Affects:** NFR-03, NFR-07
+- **Decision (2026-10-22, by delegation):**
+  - SDK and layout: .NET SDK 10.0.1xx pinned by `global.json` (10.0.100, rolling forward to the latest feature band); target framework net10.0; a classic `.sln` solution file that every current Visual Studio opens. Projects: `src/Nexus.Web` (ASP.NET Core MVC), `tests/Nexus.Tests` (xUnit), `tools/Nexus.DocsCheck` (documentation checker). Business-logic and data-access projects are added when they have content (Node 3 onward), not as empty shells.
+  - `Directory.Build.props`: nullable reference types on, warnings as errors, NuGet vulnerability audit on (direct and transitive) with high and critical findings failing the restore. The test project reports analyzer warnings without failing, but vulnerable packages still fail it.
+  - Test packages are the versions the .NET 10 SDK's own xUnit template uses: Microsoft.NET.Test.Sdk 17.14.1, xunit 2.9.3, xunit.runner.visualstudio 3.1.4.
+  - Front end: Razor views with the Bootstrap and jQuery files shipped by the ASP.NET Core template, vendored in `wwwroot/lib` (no CDN, no build step).
+  - Baseline security headers are set in middleware (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`); the `Server` header is suppressed; HSTS applies outside Development; a Content-Security-Policy is added in Node 13; `AllowedHosts` is restricted at deployment (Node 15).
+  - Configuration and secrets: no secrets in Git; local values in `dotnet user-secrets` or environment variables; connection strings use Windows authentication for local development.
+  - The documentation checker is a C# console tool (a port of the earlier Node script, verified line for line against it on the defective v1.0 documents) and runs inside the tests and CI. Node is no longer needed.
+  - CI: a GitHub Actions workflow restores, builds, tests, checks the documents and fails on vulnerable packages; action majors are checkout v6 and setup-dotnet v5 (setup-dotnet v6 exists at the time of writing; bump after the first green run). It is unverified until the first push (KI-N2-06). `scripts/verify.ps1` runs the same checks on Windows and is unverified in the build sandbox (KI-N2-05).
+  - The commit that re-platforms the repository uses a neutral author identity; the owner's identity is used from their first commit.
+- **Rationale:** the safest and most maintainable baseline for a data-sensitive application on the required stack, with every choice recorded.
+
+## D-31 Customer portal credentials without an email provider
+
+- **Status / Tier / Needed by:** DECIDED · T2 · Day 10 · **Affects:** AUTH-07
+- **Source evidence:** Proposed Solution ¶6 says customers can check their details, orders and bills; S1 gives no way for them to obtain credentials. D-12 and D-25 assumed an emailed invitation, which needs an email service (out of scope for the MVP).
+- **Decision (2026-10-22, by delegation):** Admin, or Retail for customers of their own shop, creates the portal login: the customer's email address is the login name and the system generates a one-time temporary password, shown once to the staff member, who hands it to the customer. The customer must change it at first sign-in. A forgotten password is reset the same way by staff. Email-based invitation and self-service reset are post-MVP because they need an email provider. Everything else in D-12 (one login per customer, no public lookup, no access to staff routes) is unchanged.
+- **Rationale:** removes the dependency on an email provider and matches counter-based service at the retail outlets.
 
 ---
 
@@ -326,7 +375,7 @@ None of these block Nodes 2–14. Before a live release (Day 15 gate) the owner 
 5. The messaging rate unit and the broadband 128 Kbps quarterly price ($445).
 6. Payment terms (15 days) and the bill/receipt number formats.
 7. That the role matrix and shop scope match real staffing.
-8. Hosting plans: that the deployment's use (commercial or not) is allowed on the chosen Vercel and Supabase plans, and that paid plans are in place for live use (D-26).
+8. SQL Server edition and licensing for production (Developer edition is for development and testing only; Express has size and resource limits) and the production host (D-29).
 
 ## Checked and found NOT ambiguous (no decision needed)
 
@@ -346,3 +395,4 @@ None of these block Nodes 2–14. Before a live release (Day 15 gate) the owner 
 | 2026-10-20 | v1.0: owner accepted all defaults and delegated remaining gaps; all items set to DECIDED; added D-20 and D-21; refined D-03 (bulk application grouping), D-05, D-06, D-14, D-18 | Claude, by owner delegation |
 | 2026-10-20 | v1.1: Node 1 consistency audit. Added D-22 to D-26; amended D-03, D-07, D-09, D-10, D-11, D-12, D-14, D-15, D-17, D-18; standardised filenames; removed stale wording; aligned every document (see `node1-audit-report.md`) | Claude, under owner authority |
 | 2026-10-20 | v1.2: Node 2 baseline built and verified; added D-27 (framework configuration and tooling) | Claude, under owner authority |
+| 2026-10-22 | v1.3: technology stack changed to ASP.NET Core and SQL Server (course software requirement). Added D-28 to D-31; D-26 and D-27 superseded; amended D-12, D-18, D-25 | Claude, under owner authority |

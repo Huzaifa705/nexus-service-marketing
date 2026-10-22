@@ -2,10 +2,10 @@
 
 | | |
 |---|---|
-| Version | 1.2 — Node 2 baseline |
-| Date | 2026-10-20 |
+| Version | 1.3 — Node 2 baseline (.NET) |
+| Date | 2026-10-22 |
 | Status | BASELINE. Approved by the owner by delegation on 2026-10-20. Every `SRC⚠` item is resolved by the decision `D-xx` it cites in `decision-log.md`. Real-world values (prices, tax, currency) stay flagged unverified until confirmed before go-live. |
-| Inputs reviewed in full | **S1** `NEXUS_SERVICE_MARKETING_SYSTEM.doc` (original specification) · **G1** `NEXUS_Service_Marketing_System_15_Day_Claude_Guide.pdf` (build plan) |
+| Inputs reviewed in full | **S1** `NEXUS_SERVICE_MARKETING_SYSTEM.doc` (original specification) · **G1** `NEXUS_Service_Marketing_System_15_Day_Claude_Guide_Rev2_dotnet.pdf` (build plan, revision 2: ASP.NET Core and SQL Server; replaces the original `NEXUS_Service_Marketing_System_15_Day_Claude_Guide.pdf`) |
 
 ## 1. How to read this document
 
@@ -42,13 +42,13 @@
 
 | ID | Requirement | Source | Type | Pri | Node | Dep. | Acceptance criteria |
 |---|---|---|---|---|---|---|---|
-| AUTH-01 | Every employee and customer signs in with individual credentials; Admin provisions employee credentials | NF-2, PRO-1, PRO-2 | SRC | M | N3 | — | All 5 roles sign in/out with their own account; no shared accounts outside labelled demo users; passwords never stored by the app (delegated to the auth provider) |
+| AUTH-01 | Every employee and customer signs in with individual credentials; Admin provisions employee credentials | NF-2, PRO-1, PRO-2 | SRC | M | N3 | D-28 | All 5 roles sign in/out with their own account; no shared accounts outside labelled demo users; passwords are stored only as salted hashes by ASP.NET Core Identity, never in plain text |
 | AUTH-02 | Role-based permissions (Admin, Accounts, Technical, Retail, Customer) enforced on the server for every protected read and write | PRO-1, PRO-2, PRO-5, NF-2…NF-7 | SRC | M | N3 | AUTH-01, D-08, D-09, D-11, D-25 | Every mutation in the role matrix (architecture.md §4) has an automated test: allowed roles succeed, all others get 403; direct URL/API calls without the role fail |
 | AUTH-03 | Only Admin creates, edits, deactivates employees and assigns roles | INT-4, EXS-5, NF-2 | SRC | M | N4 | AUTH-02 | Non-Admin attempts rejected; each role change writes an audit entry |
 | AUTH-04 | Each retail employee is linked to one retail shop, used to scope data | INT-2, NF-4 | REC | M | N3 | D-11, D-22 | With two shops seeded, a shop-1 user cannot read or change shop-2 records |
 | AUTH-05 | A customer login maps to exactly one customer record and sees only that customer's data | PRO-6 | SRC⚠ | M | N3, N10 | D-12 | Changing an ID in a URL/API call to another customer's record returns 403/404 (IDOR test) |
 | AUTH-06 | Sessions expire; deactivated users lose access immediately | — | REC | S | N3 | AUTH-01 | Expired session → login page; a deactivated user's next request fails |
-| AUTH-07 | Staff can invite a customer to the portal by email: Admin, or Retail for customers of their own shop; the invitation creates one login linked to exactly one customer | PRO-6 | REC | M | N10 | AUTH-05, D-12, D-25 | Invite creates a Customer-role login linked to that customer; a second invite while the login is active is rejected; a customer login receives 403 on every staff route |
+| AUTH-07 | Staff can create a portal login for a customer: Admin, or Retail for customers of their own shop; the login is linked to exactly one customer and starts with a one-time temporary password | PRO-6 | REC | M | N10 | AUTH-05, D-12, D-25, D-31 | Creating a login links one Customer-role user to that customer; a second login for the same customer is rejected while the first is active; the temporary password is shown once and must be changed at first sign-in; a customer login receives 403 on every staff route |
 | AUTH-08 | Password policy: minimum 10 characters; temporary credentials must be changed at first sign-in | NF-2 | REC | M | N3 | AUTH-01, D-25 | A 9-character password is rejected and a 10-character one accepted; a user created with temporary credentials cannot reach any page before changing the password |
 
 ### 3.2 Administration (company setup)
@@ -199,7 +199,7 @@
 
 | ID | Requirement | Source | Type | Pri | Node | Dep. | Acceptance criteria |
 |---|---|---|---|---|---|---|---|
-| DOC-01 | Address proof, application form and receipts stored as metadata + file in private storage, opened only via short-lived signed URL after a role check | EXS-2 | SRC | M | N11 | AUTH-02, D-25 | Unauthenticated URL fails (401/403); a signed URL stops working after at most 300 seconds |
+| DOC-01 | Address proof, application form and receipts stored as metadata + file in private storage outside the web root, opened only through a permission-checked download link that expires | EXS-2 | SRC | M | N11 | AUTH-02, D-25, D-28 | Unauthenticated request fails (401/403); a download link stops working after at most 300 seconds |
 | DOC-02 | Documents filterable by year and area (city) | EXS-2 | SRC | M | N11 | DOC-01 | Filtering by upload year and by city returns exactly the matching documents |
 | DOC-03 | Upload validation: file type and size limits | — | REC | M | N11 | DOC-01, D-25 | Only PDF, JPEG and PNG files up to 5 MB are accepted (limits configurable); other types and larger files are rejected |
 | DOC-04 | Which documents were submitted is captured at order time | EXS-2 | SRC | S | N5 | ORD-06 | Checklist saved on the order |
@@ -214,13 +214,13 @@
 | RPT-01 | Retail "till-date" lists: orders, order status, connections, bills, payments (shop-scoped) | NF-4 | SRC | M | N5–N10 | D-11 | Delivered with ORD-07, CON-06, BIL-11, PAY-02 |
 | RPT-02 | Operational reports: orders by status, feasible/not feasible, active connections, unpaid/overdue bills, overdue connections (also readable by Technical), payments, stock, equipment issued | G1 | REC | S | N11 | D-14 | Each report returns correct counts on seed data |
 | RPT-03 | Restricted CSV export for sensitive data | G1 | REC | C | post-MVP | — | Admin/Accounts only |
-| NFR-01 | Responsive web app for desktop and mobile browsers | G1 | REC | M | N12 | — | No horizontal scroll at 360 px viewport width on login, order list, order form and bill view (Playwright viewport test) |
+| NFR-01 | Responsive web app for desktop and mobile browsers | G1 | REC | M | N12 | — | No horizontal scroll at 360 px viewport width on login, order list, order form and bill view (Playwright for .NET viewport test) |
 | NFR-02 | All input validated on the server with shared schemas | G1 | REC | M | all | — | Invalid input rejected with field errors |
-| NFR-03 | No secrets in code or Git; `.env.example` holds placeholders only | G1 | REC | M | N2 | D-27 | Secret scan clean |
+| NFR-03 | No secrets in code or Git; configuration templates hold placeholders only | G1 | REC | M | N2 | D-30 | Secret scan clean; real values live only in user-secrets or environment variables |
 | NFR-04 | Seed/demo data is synthetic and labelled; no real customer documents | G1 | REC | M | N14 | — | Seed script and demo users labelled |
-| NFR-05 | Scheduled backups and a tested restore procedure | G1 | REC | M | N15 | D-26 | Restore rehearsed in a non-production environment |
+| NFR-05 | Scheduled backups and a tested restore procedure | G1 | REC | M | N15 | D-29 | A SQL Server backup file is restored into a non-production database and the data verified; the rehearsal is documented |
 | NFR-06 | Basic accessibility: labels, keyboard operation | G1 | REC | S | N12 | — | Forms operable by keyboard |
-| NFR-07 | Documentation updated at the end of every node | Project instructions | REC | M | all | — | `npm run docs:check` exits 0: no undefined decision or requirement references, and every Must requirement has a test |
+| NFR-07 | Documentation updated at the end of every node | Project instructions | REC | M | all | D-30 | `dotnet run --project tools/Nexus.DocsCheck -- docs` exits 0: no undefined decision or requirement references, and every Must requirement has a test |
 
 ## 4. Source coverage check
 
